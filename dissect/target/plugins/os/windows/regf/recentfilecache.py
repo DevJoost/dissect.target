@@ -1,5 +1,4 @@
 from dissect import cstruct
-from flow.record.fieldtypes import uri
 
 from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
@@ -25,7 +24,7 @@ c_recent_files.load(c_recent_files_def)
 RecentFileCacheRecord = TargetRecordDescriptor(
     "windows/recentfilecache",
     [
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -37,7 +36,7 @@ class RecentFileCachePlugin(Plugin):
         super().__init__(target)
         self._recentfiles = self.target.fs.path("sysvol/windows/appcompat/programs/RecentFileCache.bcf")
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not self._recentfiles.exists():
             raise UnsupportedPluginError("Could not load RecentFileCache.bcf")
 
@@ -59,7 +58,7 @@ class RecentFileCachePlugin(Plugin):
                 entry.path = entry.path.rstrip("\x00")
 
                 yield RecentFileCacheRecord(
-                    path=uri.from_windows(entry.path),
+                    path=self.target.fs.path(entry.path),
                     _target=self.target,
                 )
             except EOFError:

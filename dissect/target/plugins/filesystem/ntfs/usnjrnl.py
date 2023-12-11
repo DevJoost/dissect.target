@@ -1,7 +1,6 @@
 from typing import Iterator
 
 from dissect.ntfs.c_ntfs import segment_reference
-from flow.record.fieldtypes import uri
 
 from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, export
@@ -13,7 +12,7 @@ UsnjrnlRecord = TargetRecordDescriptor(
         ("datetime", "ts"),
         ("varint", "usn"),
         ("string", "segment"),
-        ("uri", "path"),
+        ("path", "path"),
         ("string", "reason"),
         ("uint32", "security_id"),
         ("string", "source"),
@@ -25,7 +24,7 @@ UsnjrnlRecord = TargetRecordDescriptor(
 
 
 class UsnjrnlPlugin(Plugin):
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         pass
 
     @export(record=UsnjrnlRecord)
@@ -41,7 +40,7 @@ class UsnjrnlPlugin(Plugin):
         """
         target = self.target
         for fs in self.target.filesystems:
-            if fs.__fstype__ != "ntfs":
+            if fs.__type__ != "ntfs":
                 continue
 
             usnjrnl = fs.ntfs.usnjrnl
@@ -64,7 +63,7 @@ class UsnjrnlPlugin(Plugin):
                     yield UsnjrnlRecord(
                         ts=ts,
                         segment=f"{segment}#{record.FileReferenceNumber.SequenceNumber}",
-                        path=uri.from_windows(path),
+                        path=self.target.fs.path(path),
                         usn=record.Usn,
                         reason=str(record.Reason).replace("USN_REASON.", ""),
                         attr=str(record.FileAttributes).replace("FILE_ATTRIBUTE.", ""),

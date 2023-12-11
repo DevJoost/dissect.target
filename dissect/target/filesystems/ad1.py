@@ -13,7 +13,7 @@ from dissect.target.helpers import fsutil
 
 
 class AD1Filesystem(Filesystem):
-    __fstype__ = "ad1"
+    __type__ = "ad1"
 
     def __init__(self, fh, *args, **kwargs):
         super().__init__(fh, *args, **kwargs)
@@ -79,4 +79,4 @@ class AD1FilesystemEntry(FilesystemEntry):
     def lstat(self) -> fsutil.stat_result:
         size = self.entry.size if self.entry.is_file() else 0
         entry_addr = fsutil.generate_addr(self.path, alt_separator=self.fs.alt_separator)
-        return fsutil.stat_result([stat.S_IFREG, entry_addr, id(self.fs), 0, 0, 0, size, 0, 0, 0])
+        return fsutil.stat_result([stat.S_IFREG, entry_addr, id(self.fs), 1, 0, 0, size, 0, 0, 0])

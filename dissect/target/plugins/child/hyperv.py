@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator
 
 from dissect.hypervisor import hyperv
-from flow.record.fieldtypes import path
 
 from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import ChildTargetRecord
@@ -35,7 +34,7 @@ class HyperVChildTargetPlugin(ChildTargetPlugin):
         self.data_vmcx = hyperv_path.joinpath("data.vmcx")
         self.vm_xml = list(hyperv_path.joinpath("Virtual Machines").glob("*.xml"))
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not self.data_vmcx.exists() and not self.vm_xml:
             raise UnsupportedPluginError("No registered VMs and no data.vmcx file found")
 
@@ -47,7 +46,7 @@ class HyperVChildTargetPlugin(ChildTargetPlugin):
                 for vm_path in virtual_machines.values():
                     yield ChildTargetRecord(
                         type=self.__type__,
-                        path=path.from_windows(vm_path),
+                        path=self.target.fs.path(vm_path),
                         _target=self.target,
                     )
 

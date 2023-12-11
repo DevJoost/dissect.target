@@ -14,7 +14,7 @@ from dissect.target.helpers import fsutil
 
 
 class FfsFilesystem(Filesystem):
-    __fstype__ = "ffs"
+    __type__ = "ffs"
 
     def __init__(self, fh: BinaryIO, *args, **kwargs):
         super().__init__(fh, *args, **kwargs)
@@ -114,7 +114,7 @@ class FfsFilesystemEntry(FilesystemEntry):
             [
                 self.entry.mode,
                 self.entry.inum,
-                0,
+                id(self.fs),
                 node.di_nlink,
                 node.di_uid,
                 node.di_gid,

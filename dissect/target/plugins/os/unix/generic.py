@@ -8,7 +8,7 @@ from dissect.target.plugin import Plugin, export
 
 
 class GenericPlugin(Plugin):
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         pass
 
     @export(property=True)
@@ -30,16 +30,18 @@ class GenericPlugin(Plugin):
     def install_date(self) -> Optional[datetime]:
         """Return the likely install date of the operating system."""
 
+        # Although this purports to be a generic function for Unix targets,
+        # these paths are Linux specific.
         files = [
             # Debian
             "/var/log/installer/install-journal.txt",
             "/var/log/installer/syslog",
+            "/var/lib/dpkg/arch",
             # RedHat
             "/root/anaconda-ks.cfg",
             # Generic
             "/etc/hostname",
             "/etc/machine-id",
-            "/var/lib/dpkg/arch",
         ]
         dates = []
 

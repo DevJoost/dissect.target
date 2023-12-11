@@ -2,7 +2,6 @@ import codecs
 
 from dissect import cstruct
 from dissect.util.ts import wintimestamp
-from flow.record.fieldtypes import uri
 
 from dissect.target.exceptions import RegistryValueNotFoundError, UnsupportedPluginError
 from dissect.target.helpers.descriptor_extensions import (
@@ -44,7 +43,7 @@ UserAssistRecord = UserAssistRecordDescriptor(
     "windows/registry/userassist",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
         ("uint32", "number_of_executions"),
         ("uint32", "application_focus_count"),
         ("uint32", "application_focus_duration"),
@@ -57,7 +56,7 @@ class UserAssistPlugin(Plugin):
 
     KEY = "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist"
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not len(list(self.target.registry.keys(self.KEY))) > 0:
             raise UnsupportedPluginError("No UserAssist key found")
 
@@ -76,7 +75,7 @@ class UserAssistPlugin(Plugin):
             hostname (string): The target hostname.
             domain (string): The target domain.
             ts (datetime): The entry timestamp.
-            path (uri): The entry path.
+            path (path): The entry path.
             number_of_executions (int): The number of executions for this entry.
             application_focus_count (int): The number of focus acount for this entry.
             application_focus_duration (int): The duration of focus for this entry.
@@ -118,7 +117,7 @@ class UserAssistPlugin(Plugin):
                             )
                             continue
 
-                        value = uri.from_windows(codecs.decode(entry.name, "rot-13"))
+                        value = codecs.decode(entry.name, "rot-13")
                         parts = value.split("/")
 
                         try:
@@ -128,7 +127,7 @@ class UserAssistPlugin(Plugin):
 
                         yield UserAssistRecord(
                             ts=wintimestamp(timestamp),
-                            path=value,
+                            path=self.target.fs.path(value),
                             number_of_executions=number_of_executions,
                             application_focus_count=application_focus_count,
                             application_focus_duration=application_focus_duration,

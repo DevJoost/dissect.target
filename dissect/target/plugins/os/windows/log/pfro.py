@@ -1,8 +1,6 @@
 import datetime
 import re
 
-from flow.record.fieldtypes import uri
-
 from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, export
@@ -11,7 +9,7 @@ PfroRecord = TargetRecordDescriptor(
     "filesystem/windows/pfro",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
         ("string", "operation"),
     ],
 )
@@ -26,7 +24,7 @@ class PfroPlugin(Plugin):
         super().__init__(target)
         self.logfile = self.target.fs.path("sysvol/windows/PFRO.log")
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not self.logfile.exists():
             raise UnsupportedPluginError("No PFRO log found")
 
@@ -61,7 +59,7 @@ class PfroPlugin(Plugin):
                     # which gets grouped with the datetime of the logged
                     # action.
                     date = re.split(".+[A-Za-z]", date)[1]
-                path = idx[1].split("|")[0][16:-2]
+                file_path = idx[1].split("|")[0][16:-2]
                 operation = idx[1].split("|")
                 if len(operation) >= 2:
                     operation = operation[1].split(" ")[0]
@@ -70,7 +68,7 @@ class PfroPlugin(Plugin):
 
                 yield PfroRecord(
                     ts=datetime.datetime.strptime(date, "%m/%d/%Y %H:%M:%S"),
-                    path=uri.from_windows(path),
+                    path=self.target.fs.path(file_path),
                     operation=operation,
                     _target=self.target,
                 )

@@ -1,6 +1,7 @@
 import plistlib
 from typing import Iterator
 
+from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.descriptor_extensions import UserRecordDescriptorExtension
 from dissect.target.helpers.record import create_extended_descriptor
 from dissect.target.plugin import Plugin, export
@@ -24,8 +25,9 @@ class UserPlugin(Plugin):
 
     USER_PATH = "/var/db/dslocal/nodes/Default/users"
 
-    def check_compatible(self) -> bool:
-        return self.target.fs.path(self.USER_PATH).exists()
+    def check_compatible(self) -> None:
+        if not self.target.fs.path(self.USER_PATH).exists():
+            raise UnsupportedPluginError("No user directories found")
 
     @export(record=AccountPolicyRecord)
     def account_policy(self) -> Iterator[AccountPolicyRecord]:
@@ -45,7 +47,7 @@ class UserPlugin(Plugin):
                         password_last_time=account_policy.get("passwordLastSetTime"),
                         failed_login_count=account_policy.get("failedLoginCount"),
                         failed_login_time=account_policy.get("failedLoginTimestamp"),
-                        source=user_details.user.source,
+                        source=self.target.fs.path(user_details.user.source),
                         _user=user_details.user,
                         _target=self.target,
                     )

@@ -1,6 +1,5 @@
-from dissect import cstruct
+from dissect.cstruct import cstruct
 from dissect.util.ts import wintimestamp
-from flow.record.fieldtypes import uri
 
 from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
@@ -11,14 +10,14 @@ c_bamdef = """
         uint64 ts;
     };
     """
-c_bam = cstruct.cstruct()
+c_bam = cstruct()
 c_bam.load(c_bamdef)
 
 BamDamRecord = TargetRecordDescriptor(
     "windows/registry/bam",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -33,7 +32,7 @@ class BamDamPlugin(Plugin):
         "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\dam\\State\\UserSettings",
     ]
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not len(list(self.target.registry.keys(self.KEYS))) > 0:
             raise UnsupportedPluginError("No bam or dam registry keys not found")
 
@@ -57,6 +56,6 @@ class BamDamPlugin(Plugin):
                         data = c_bam.entry(entry.value)
                         yield BamDamRecord(
                             ts=wintimestamp(data.ts),
-                            path=uri.from_windows(entry.name),
+                            path=self.target.fs.path(entry.name),
                             _target=self.target,
                         )

@@ -28,7 +28,7 @@ class ZipFilesystem(Filesystem):
     See https://github.com/python/cpython/issues/82102 for more information.
     """
 
-    __fstype__ = "zip"
+    __type__ = "zip"
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class ZipFilesystemEntry(VirtualFile):
                 stat.S_IFREG | 0o777,
                 self.entry.header_offset,
                 id(self.fs),
-                0,
+                1,
                 0,
                 0,
                 self.entry.file_size,
@@ -125,7 +125,7 @@ class ZipFilesystemDirectoryEntry(VirtualDirectory):
                 stat.S_IFDIR | 0o777,
                 self.entry.header_offset,
                 id(self.fs),
-                0,
+                1,
                 0,
                 0,
                 self.entry.file_size,

@@ -5,8 +5,6 @@ try:
 except ImportError:
     raise ImportError("Please install 'yara-python' to use 'target-query -f yara'.")
 
-from flow.record.fieldtypes import uri
-
 from dissect.target.exceptions import FileNotFoundError
 from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, arg, export
@@ -14,7 +12,7 @@ from dissect.target.plugin import Plugin, arg, export
 YaraMatchRecord = TargetRecordDescriptor(
     "filesystem/yara/match",
     [
-        ("uri", "path"),
+        ("path", "path"),
         ("digest", "digest"),
         ("string", "rule"),
         ("string[]", "tags"),
@@ -27,8 +25,8 @@ class YaraPlugin(Plugin):
 
     DEFAULT_MAX_SIZE = 10 * 1024 * 1024
 
-    def check_compatible(self):
-        return self.target.has_function("walkfs")
+    def check_compatible(self) -> None:
+        pass
 
     @arg("--rule-files", "-r", type=Path, nargs="+", required=True, help="path to YARA rule file")
     @arg("--scan-path", default="/", help="path to recursively scan")
@@ -44,20 +42,22 @@ class YaraPlugin(Plugin):
         rule_data = "\n".join([rule_file.read_text() for rule_file in rule_files])
 
         rules = yara.compile(source=rule_data)
-        for entry, _ in self.target.walkfs_ext(scan_path):
-            try:
-                if not entry.is_file() or entry.stat().st_size > max_size:
-                    continue
+        for _, _, files in self.target.fs.walk_ext(scan_path):
+            for file_entry in files:
+                path = self.target.fs.path(file_entry.path)
+                try:
+                    if path.stat().st_size > max_size:
+                        continue
 
-                for match in rules.match(data=entry.read_bytes()):
-                    yield YaraMatchRecord(
-                        path=uri(str(entry)),
-                        digest=entry.get().hash(),
-                        rule=match.rule,
-                        tags=match.tags,
-                        _target=self.target,
-                    )
-            except FileNotFoundError:
-                continue
-            except Exception:
-                self.target.log.exception("Error scanning file: %s", entry)
+                    for match in rules.match(data=path.read_bytes()):
+                        yield YaraMatchRecord(
+                            path=path,
+                            digest=path.get().hash(),
+                            rule=match.rule,
+                            tags=match.tags,
+                            _target=self.target,
+                        )
+                except FileNotFoundError:
+                    continue
+                except Exception:
+                    self.target.log.exception("Error scanning file: %s", path)

@@ -4,7 +4,7 @@ import urllib.parse
 from datetime import datetime, timezone, tzinfo
 from enum import Enum
 from pathlib import Path
-from typing import BinaryIO, Iterator, Union
+from typing import BinaryIO, Callable, Iterator, Optional, Union
 
 from dissect.util.ts import from_unix
 
@@ -17,7 +17,7 @@ class StrEnum(str, Enum):
     """Sortable and serializible string-based enum"""
 
 
-def list_to_frozen_set(function):
+def list_to_frozen_set(function: Callable) -> Callable:
     def wrapper(*args):
         args = [frozenset(x) if isinstance(x, list) else x for x in args]
         return function(*args)
@@ -25,12 +25,23 @@ def list_to_frozen_set(function):
     return wrapper
 
 
-def parse_path_uri(path):
+def parse_path_uri(path: Path) -> tuple[Optional[str], Optional[str], Optional[str]]:
     if path is None:
         return None, None, None
     parsed_path = urllib.parse.urlparse(str(path))
     parsed_query = urllib.parse.parse_qs(parsed_path.query, keep_blank_values=True)
     return parsed_path.scheme, parsed_path.path, parsed_query
+
+
+def parse_options_string(options: str) -> dict[str, Union[str, bool]]:
+    result = {}
+    for opt in options.split(","):
+        if "=" in opt:
+            key, _, value = opt.partition("=")
+            result[key] = value
+        else:
+            result[opt] = True
+    return result
 
 
 SLUG_RE = re.compile(r"[/\\ ]")
@@ -102,7 +113,13 @@ def year_rollover_helper(
                 log.debug("Skipping line: %s", line)
                 continue
 
-            relative_ts = datetime.strptime(timestamp.group(0), ts_format)
+            try:
+                relative_ts = datetime.strptime(timestamp.group(0), ts_format)
+            except ValueError as e:
+                log.warning("Timestamp '%s' does not match format '%s', skipping line.", timestamp.group(0), ts_format)
+                log.debug("", exc_info=e)
+                continue
+
             if last_seen_month and relative_ts.month > last_seen_month:
                 current_year -= 1
             last_seen_month = relative_ts.month

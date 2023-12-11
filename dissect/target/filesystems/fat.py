@@ -11,7 +11,7 @@ from dissect.target.helpers import fsutil
 
 
 class FatFilesystem(Filesystem):
-    __fstype__ = "fat"
+    __type__ = "fat"
 
     def __init__(self, fh: BinaryIO, *args, **kwargs):
         super().__init__(fh, case_sensitive=False, alt_separator="\\", *args, **kwargs)
@@ -104,7 +104,7 @@ class FatFilesystemEntry(FilesystemEntry):
             (stat.S_IFDIR if self.is_dir() else stat.S_IFREG) | 0o777,
             self.entry.cluster,
             id(self.fs),
-            0,
+            1,
             0,
             0,
             self.entry.size,

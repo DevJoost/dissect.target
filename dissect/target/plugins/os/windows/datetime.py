@@ -37,7 +37,10 @@ c_tz = cstruct.cstruct()
 c_tz.load(tz_def)
 
 
-SundayFirstCalendar = calendar.Calendar(calendar.SUNDAY)
+# Althoug calendar.SUNDAY is only officially documented since Python 3.10, it
+# is present in Python 3.9, so we ignore the vermin warnings.
+SUNDAY = calendar.SUNDAY  # novermin
+SundayFirstCalendar = calendar.Calendar(SUNDAY)
 TimezoneInformation = namedtuple(
     "TimezoneInformation",
     (
@@ -219,7 +222,7 @@ class DateTimePlugin(Plugin):
         else:
             self._tzinfo = self.tz(tz_name)
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not self._tzinfo:
             raise UnsupportedPluginError("No time zone information")
 

@@ -1,5 +1,3 @@
-from flow.record.fieldtypes import uri
-
 from dissect.target.exceptions import RegistryError, UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, export
@@ -8,7 +6,7 @@ PanelPathRecord = TargetRecordDescriptor(
     "windows/registry/sevenzip/panelpath",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -17,7 +15,7 @@ ArcHistoryRecord = TargetRecordDescriptor(
     "windows/registry/sevenzip/archistory",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -26,7 +24,7 @@ PathHistoryRecord = TargetRecordDescriptor(
     "windows/registry/sevenzip/pathhistory",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -35,7 +33,7 @@ CopyHistoryRecord = TargetRecordDescriptor(
     "windows/registry/sevenzip/copyhistory",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -44,7 +42,7 @@ FolderHistoryRecord = TargetRecordDescriptor(
     "windows/registry/sevenzip/folderhistory",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
+        ("path", "path"),
     ],
 )
 
@@ -52,7 +50,7 @@ FolderHistoryRecord = TargetRecordDescriptor(
 class SevenZipPlugin(Plugin):
     KEY = "HKCU\\Software\\7-Zip"
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not len(list(self.target.registry.keys(self.KEY))) > 0:
             raise UnsupportedPluginError("7-Zip registry key not found")
 
@@ -60,13 +58,13 @@ class SevenZipPlugin(Plugin):
         try:
             subkey = key.subkey(keyname)
             value = subkey.value(valuename).value
-            for path in value.decode("utf-16-le").split("\x00"):
-                if not path:
+            for file_path in value.decode("utf-16-le").split("\x00"):
+                if not file_path:
                     continue
 
                 yield record(
                     ts=subkey.ts,
-                    path=uri.from_windows(path),
+                    path=self.target.fs.path(file_path),
                     _target=self.target,
                 )
         except RegistryError:
@@ -90,7 +88,7 @@ class SevenZipPlugin(Plugin):
                 value = subkey.value("PanelPath0").value
                 yield PanelPathRecord(
                     ts=subkey.ts,
-                    path=uri.from_windows(value),
+                    path=self.target.fs.path(value),
                     _target=self.target,
                 )
             except RegistryError:

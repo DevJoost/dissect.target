@@ -1,5 +1,4 @@
-from flow.record.fieldtypes import path
-
+from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import ChildTargetRecord
 from dissect.target.plugin import ChildTargetPlugin
 
@@ -20,8 +19,9 @@ class WorkstationChildTargetPlugin(ChildTargetPlugin):
         super().__init__(target)
         self.inventories = list(find_vm_inventory(target))
 
-    def check_compatible(self):
-        return len(self.inventories) > 0
+    def check_compatible(self) -> None:
+        if not len(self.inventories):
+            raise UnsupportedPluginError("No VMWare inventories found")
 
     def list_children(self):
         for inv in self.inventories:
@@ -40,6 +40,6 @@ class WorkstationChildTargetPlugin(ChildTargetPlugin):
 
                 yield ChildTargetRecord(
                     type=self.__type__,
-                    path=path.from_windows(value.strip('"')),
+                    path=self.target.fs.path(value.strip('"')),
                     _target=self.target,
                 )

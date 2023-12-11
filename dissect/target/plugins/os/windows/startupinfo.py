@@ -1,7 +1,6 @@
 import datetime
 
 from defusedxml import ElementTree
-from flow.record.fieldtypes import uri
 
 from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
@@ -23,12 +22,12 @@ StartupInfoRecord = TargetRecordDescriptor(
     "filesystem/windows/startupinfo",
     [
         ("datetime", "ts"),
-        ("uri", "path"),
-        ("uri", "commandline"),
+        ("path", "path"),
+        ("path", "commandline"),
         ("varint", "pid"),
         ("varint", "parent_pid"),
         ("datetime", "parent_start_time"),
-        ("uri", "parent_name"),
+        ("path", "parent_name"),
         ("varint", "disk_usage"),
         ("varint", "cpu_usage"),
     ],
@@ -51,7 +50,7 @@ class StartupInfoPlugin(Plugin):
         if path.exists():
             self._files = list(path.iterdir())
 
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         if not self._files:
             raise UnsupportedPluginError("No StartupInfo files found")
 
@@ -76,12 +75,12 @@ class StartupInfoPlugin(Plugin):
 
                     yield StartupInfoRecord(
                         ts=parse_ts(start_time),
-                        path=uri.from_windows(process.get("Name")),
-                        commandline=uri.from_windows(process.findtext("CommandLine")),
+                        path=self.target.fs.path(process.get("Name")),
+                        commandline=self.target.fs.path(process.findtext("CommandLine")),
                         pid=process.get("PID"),
                         parent_pid=process.findtext("ParentPID"),
                         parent_start_time=parse_ts(parent_start_time),
-                        parent_name=process.findtext("ParentName"),
+                        parent_name=self.target.fs.path(process.findtext("ParentName")),
                         disk_usage=process.findtext("DiskUsage"),
                         cpu_usage=process.findtext("CpuUsage"),
                         _target=self.target,

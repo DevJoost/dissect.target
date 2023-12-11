@@ -15,7 +15,7 @@ from dissect.target.helpers import fsutil
 
 
 class SquashFSFilesystem(Filesystem):
-    __fstype__ = "squashfs"
+    __type__ = "squashfs"
 
     def __init__(self, fh: BinaryIO, *args, **kwargs):
         super().__init__(fh, *args, **kwargs)
@@ -107,7 +107,7 @@ class SquashFSFilesystemEntry(FilesystemEntry):
                 node.mode,
                 node.inode_number,
                 id(self.fs),
-                getattr(node.header, "nlink", 0),
+                getattr(node.header, "nlink", 1),
                 node.uid,
                 node.gid,
                 node.size,

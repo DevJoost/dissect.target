@@ -4,7 +4,7 @@ from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, export
 
 CronjobRecord = TargetRecordDescriptor(
-    "linux/cronjob",
+    "unix/cronjob",
     [
         ("string", "minute"),
         ("string", "hour"),
@@ -12,37 +12,24 @@ CronjobRecord = TargetRecordDescriptor(
         ("string", "month"),
         ("string", "weekday"),
         ("string", "user"),
-        ("wstring", "command"),
-        ("uri", "source"),
+        ("string", "command"),
+        ("path", "source"),
     ],
 )
 
 EnvironmentVariableRecord = TargetRecordDescriptor(
-    "linux/environmentvariable",
+    "unix/environmentvariable",
     [
         ("string", "key"),
         ("string", "value"),
-        ("uri", "source"),
+        ("path", "source"),
     ],
 )
 
 
 class CronjobPlugin(Plugin):
-    def check_compatible(self):
+    def check_compatible(self) -> None:
         pass
-
-    def get_record(self, minute, hour, day, month, weekday, usr, cmd, path):
-        return CronjobRecord(
-            minute=minute,
-            hour=hour,
-            day=day,
-            month=month,
-            weekday=weekday,
-            user=usr,
-            command=cmd,
-            source=self.resolver.resolve(path),
-            _target=self.target,
-        )
 
     def parse_crontab(self, file_path):
         for line in file_path.open("rt"):
@@ -66,7 +53,7 @@ class CronjobPlugin(Plugin):
                     weekday=match.group(5),
                     user=usr,
                     command=cmd,
-                    source=str(file_path),
+                    source=file_path,
                     _target=self.target,
                 )
 
@@ -75,7 +62,7 @@ class CronjobPlugin(Plugin):
                 yield EnvironmentVariableRecord(
                     key=s.group(1),
                     value=s.group(2),
-                    source=str(file_path),
+                    source=file_path,
                     _target=self.target,
                 )
 
@@ -93,6 +80,7 @@ class CronjobPlugin(Plugin):
             "/var/spool/cron",
             "/var/spool/cron/crontabs",
             "/etc/cron.d",
+            "/usr/local/etc/cron.d",  # FreeBSD
         ]
         for path in crontab_dirs:
             fspath = self.target.fs.path(path)

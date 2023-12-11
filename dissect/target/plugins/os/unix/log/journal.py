@@ -5,9 +5,9 @@ import zstandard
 from dissect.cstruct import Instance, cstruct
 from dissect.util import ts
 from dissect.util.compression import lz4
-from flow.record.fieldtypes import path
 
 from dissect.target import Target
+from dissect.target.exceptions import UnsupportedPluginError
 from dissect.target.helpers.record import TargetRecordDescriptor
 from dissect.target.plugin import Plugin, export
 
@@ -94,7 +94,7 @@ flag IncompatibleFlag : le32_t {
     HEADER_INCOMPATIBLE_COMPRESSED_LZ4  = 2,
     HEADER_INCOMPATIBLE_KEYED_HASH      = 4,
     HEADER_INCOMPATIBLE_COMPRESSED_ZSTD = 8,
-    HEADER_INCOMPATIBLE_COMPACT         = 16,         // indicates that the Journal file uses the new binary format
+    HEADER_INCOMPATIBLE_COMPACT         = 16,             // indicates that the Journal file uses the new binary format
 };
 
 struct Header {
@@ -154,10 +154,10 @@ flag ObjectFlag : uint8 {
 };
 
 struct ObjectHeader {
-    ObjectType  type;                                 // The type field is one of the object types listed above
-    uint8_t     flags;                                // If DATA object the value is ObjectFlag
+    ObjectType  type;                                     // The type field is one of the object types listed above
+    uint8_t     flags;                                    // If DATA object the value is ObjectFlag
     uint8_t     reserved[6];
-    le64_t      size;                                 // The size field encodes the size of the object including all its headers and payload
+    le64_t      size;                                     // The size field encodes the size of the object including all its headers and payload
 };
 
 
@@ -173,7 +173,7 @@ struct DataObject {
     le64_t      entry_offset;
     le64_t      entry_array_offset;
     le64_t      n_entries;
-    char        payload[size - 64];                   // Data objects carry actual field data in the payload[] array.
+    char        payload[size - 64];                       // Data objects carry actual field data in the payload[] array.
 };
 
 // If the HEADER_INCOMPATIBLE_COMPACT flag is set, two extra fields are stored to allow immediate access
@@ -191,7 +191,7 @@ struct DataObject_Compact {
     le64_t      n_entries;
     le32_t      tail_entry_array_offset;
     le32_t      tail_entry_array_n_entries;
-    char        payload[size - 72];                   // Data objects carry actual field data in the payload[] array.
+    char        payload[size - 72];                       // Data objects carry actual field data in the payload[] array.
 };
 
 struct EntryItem {
@@ -214,7 +214,7 @@ struct EntryObject {
     le64_t      monotonic;
     sd_id128_t  boot_id;
     le64_t      xor_hash;
-    EntryItem   items[size - 64 / 16];                // The size minus the previous members divided by the size of the items
+    EntryItem   items[(size - 64) / 16];                  // The size minus the previous members divided by the size of the items
 };
 
 // If the HEADER_INCOMPATIBLE_COMPACT flag is set, DATA object offsets are stored as 32-bit integers instead of 64bit
@@ -229,7 +229,7 @@ struct EntryObject_Compact {
     le64_t      monotonic;
     sd_id128_t  boot_id;
     le64_t      xor_hash;
-    EntryItem_Compact   items[size - 64 / 4];
+    EntryItem_Compact   items[(size - 64) / 4];
 };
 
 // The first four members are copied from from ObjectHeader, so that the size can be used as the length of entry_object_offsets
@@ -239,7 +239,7 @@ struct EntryArrayObject {
     uint8_t     reserved[6];
     le64_t      size;
     le64_t      next_entry_array_offset;
-    le64_t      entry_object_offsets[size - 24 / 8];  // The size minus the previous members divided by the size of the offset
+    le64_t      entry_object_offsets[(size - 24) / 8];    // The size minus the previous members divided by the size of the offset
 };
 
 struct EntryArrayObject_Compact {
@@ -248,7 +248,7 @@ struct EntryArrayObject_Compact {
     uint8_t     reserved[6];
     le64_t      size;
     le64_t      next_entry_array_offset;
-    le32_t      entry_object_offsets[size - 24 / 4];
+    le32_t      entry_object_offsets[(size - 24) / 4];
 };
 """  # noqa: E501
 
@@ -380,8 +380,9 @@ class JournalPlugin(Plugin):
         for _path in self.JOURNAL_PATHS:
             self.journal_paths.extend(self.target.fs.path(_path).glob(self.JOURNAL_GLOB))
 
-    def check_compatible(self) -> bool:
-        return bool(len(self.journal_paths))
+    def check_compatible(self) -> None:
+        if not len(self.journal_paths):
+            raise UnsupportedPluginError("No journald files found")
 
     @export(record=JournalRecord)
     def journal(self) -> Iterator[JournalRecord]:
@@ -391,6 +392,8 @@ class JournalPlugin(Plugin):
             - https://wiki.archlinux.org/title/Systemd/Journal
             - https://github.com/systemd/systemd/blob/9203abf79f1d05fdef9b039e7addf9fc5a27752d/man/systemd.journal-fields.xml
         """  # noqa: E501
+
+        path_function = self.target.fs.path
 
         for _path in self.journal_paths:
             fh = _path.open()
@@ -407,7 +410,7 @@ class JournalPlugin(Plugin):
                     message=entry.get("message"),
                     message_id=entry.get("message_id"),
                     priority=get_optional(entry.get("priority"), int),
-                    code_file=get_optional(entry.get("code_file"), path.from_posix),
+                    code_file=get_optional(entry.get("code_file"), path_function),
                     code_line=get_optional(entry.get("code_line"), int),
                     code_func=entry.get("code_func"),
                     errno=get_optional(entry.get("errno"), int),
@@ -425,12 +428,12 @@ class JournalPlugin(Plugin):
                     uid=get_optional(entry.get("uid"), int),
                     gid=get_optional(entry.get("gid"), int),
                     comm=entry.get("comm"),
-                    exe=get_optional(entry.get("exe"), path.from_posix),
+                    exe=get_optional(entry.get("exe"), path_function),
                     cmdline=entry.get("cmdline"),
                     cap_effective=entry.get("cap_effective"),
                     audit_session=get_optional(entry.get("audit_session"), int),
                     audit_loginuid=get_optional(entry.get("audit_loginuid"), int),
-                    systemd_cgroup=get_optional(entry.get("systemd_cgroup"), path.from_posix),
+                    systemd_cgroup=get_optional(entry.get("systemd_cgroup"), path_function),
                     systemd_slice=entry.get("systemd_slice"),
                     systemd_unit=entry.get("systemd_unit"),
                     systemd_user_unit=entry.get("systemd_user_unit"),
@@ -449,8 +452,8 @@ class JournalPlugin(Plugin):
                     kernel_device=entry.get("kernel_device"),
                     kernel_subsystem=entry.get("kernel_subsystem"),
                     udev_sysname=entry.get("udev_sysname"),
-                    udev_devnode=get_optional(entry.get("udev_devnode"), path.from_posix),
-                    udev_devlink=get_optional(entry.get("udev_devlink"), path.from_posix),
+                    udev_devnode=get_optional(entry.get("udev_devnode"), path_function),
+                    udev_devlink=get_optional(entry.get("udev_devlink"), path_function),
                     journal_hostname=entry.get("hostname"),
                     filepath=_path,
                     _target=self.target,

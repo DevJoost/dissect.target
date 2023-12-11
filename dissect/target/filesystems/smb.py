@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 class SmbFilesystem(Filesystem):
     """Filesystem implementation for SMB."""
 
-    __fstype__ = "smb"
+    __type__ = "smb"
 
     def __init__(self, conn: SMBConnection, share_name: str, *args, **kwargs):
         super().__init__(None, *args, **kwargs, alt_separator="\\", case_sensitive=False)
@@ -135,7 +135,7 @@ class SmbFilesystemEntry(FilesystemEntry):
             mode | 0o755,
             fsutil.generate_addr(self.path, alt_separator=self.fs.alt_separator),
             id(self.fs),
-            0,
+            1,
             0,
             0,
             self.entry.get_filesize(),
